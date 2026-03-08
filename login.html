@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Admin - Ashda Nusantara Farm</title>
+    <link rel="icon" href="favicon.png" type="image/png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-100 h-screen flex items-center justify-center font-sans">
+
+    <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md border-t-4 border-green-600">
+        <div class="text-center mb-8">
+            <img src="logo.png" alt="Logo Ashda Farm" class="h-20 w-auto mx-auto mb-4 object-contain">
+            <h1 class="text-2xl font-bold text-gray-800">Ashda Nusantara Farm</h1>
+            <p class="text-sm text-gray-500">Admin Panel Login</p>
+        </div>
+
+        <form id="formLogin" class="space-y-6">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Email Admin</label>
+                <div class="mt-1 relative rounded-md shadow-sm">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fa-solid fa-envelope text-gray-400"></i>
+                    </div>
+                    <input type="email" id="email" required class="block w-full pl-10 border-gray-300 rounded-md border p-2 focus:ring-green-500 focus:border-green-500" placeholder="admin@domain.com">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Kata Sandi</label>
+                <div class="mt-1 relative rounded-md shadow-sm">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fa-solid fa-lock text-gray-400"></i>
+                    </div>
+                    <input type="password" id="password" required class="block w-full pl-10 border-gray-300 rounded-md border p-2 focus:ring-green-500 focus:border-green-500" placeholder="••••••••">
+                </div>
+            </div>
+
+            <div id="errorMsg" class="hidden text-sm text-red-600 bg-red-50 p-2 rounded border border-red-200"></div>
+
+            <button type="submit" id="btnLogin" class="w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors">
+                <i class="fa-solid fa-right-to-bracket mr-2"></i> Masuk Sistem
+            </button>
+        </form>
+        
+        <p class="mt-6 text-center text-xs text-gray-400">
+            Sistem Internal &copy; 2026 Ashda Nusantara Farm
+        </p>
+    </div>
+
+    <script type="module" src="login.js"></script>
+</body>
+</html>

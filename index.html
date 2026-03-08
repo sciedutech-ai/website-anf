@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ashda Nusantara Farm - Peternakan Ayam Petelur Sidoarjo</title>
+    
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="favicon.png">
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <nav>
+        <div class="logo">
+            <span class="logo-highlight">Ashda</span> Nusantara Farm
+        </div>
+        <ul class="nav-links">
+            <li><a href="#beranda">Beranda</a></li>
+            <li><a href="#mitra">Mitra & Produk</a></li>
+            <li><a href="#edukasi">Edukasi</a></li>
+            <li><a href="#berita">Berita</a></li>
+        </ul>
+    </nav>
+
+    <div class="realtime-ticker">
+        <div class="ticker-content">
+            🔴 <span class="blink">LIVE</span> UPDATE HARGA PASAR TELUR (SIDOARJO & SEKITARNYA): 
+            <span id="market-price">Memuat data...</span> | 
+            HARGA SPESIAL MITRA ASHDA: <span id="ashda-price" class="highlight-price">Memuat data...</span>
+        </div>
+    </div>
+    <section id="harga-jatim" class="table-section">
+        <div class="container-table">
+            <h2 class="section-title" style="margin-top: 20px;">Update Harga Telur Jawa Timur</h2>
+            <p class="text-center"><em>*Harga rata-rata pasar hari ini. Harga Mitra Ashda tetap <span class="text-yellow bold">Rp. 27.000/KG</span></em></p>
+            
+            <p class="text-center" id="waktu-update" style="font-size: 0.95rem; color: #1a5b42; margin-bottom: 20px; background-color: #e8f5e9; padding: 8px; border-radius: 5px; display: inline-block; width: 100%;">
+                ⏳ Menghubungkan ke server...
+            </p>
+            <div class="table-responsive">
+                <table id="tabel-harga-telur">
+                    <thead>
+                        <tr>
+                            <th>Kabupaten/Kota</th>
+                            <th>Harga (Rp/KG)</th>
+                            <th>Tren</th>
+                        </tr>
+                    </thead>
+                    <tbody id="body-tabel-harga">
+                        <tr><td colspan="3" style="text-align:center;">Memuat data pasar...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="source-text">Sumber Data: Simulasi Sistem (Siap dihubungkan ke API/Backend)</p>
+        </div>
+    </section>
+    <section id="distribusi" class="distribusi-section">
+        <div class="distribusi-header">
+            <h2 class="section-title">Jaringan Distribusi Premium</h2>
+            <p class="section-subtitle">Mengantarkan kualitas terbaik dari peternakan hingga ke lokasi Anda dengan armada modern dan sistem logistik terpadu.</p>
+        </div>
+
+        <div class="distribusi-content">
+            <div class="distribusi-hero-image">
+                <img src="https://images.unsplash.com/photo-1605280263929-1c42c62b9797?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80" alt="Armada Mobil Box Ashda Nusantara Farm" loading="lazy">
+                <div class="image-overlay">
+                    <h3>Armada Siap Antar</h3>
+                    <p>Kecepatan & Keamanan Prioritas Kami</p>
+                </div>
+            </div>
+
+            <div class="distribusi-features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🚚</div>
+                    <h4>Armada Modern & Terawat</h4>
+                    <p>Menggunakan unit mobil boks dan pickup tahun muda untuk menjamin keandalan pengiriman jarak jauh maupun dalam kota.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">❄️</div>
+                    <h4>Standar Keamanan Produk</h4>
+                    <p>Penanganan khusus untuk meminimalkan guncangan dan menjaga suhu optimal agar telur tetap segar sampai tujuan.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🗺️</div>
+                    <h4>Jangkauan Luas Jawa Timur</h4>
+                    <p>Rute pengiriman rutin mencakup Sidoarjo, Surabaya, Gresik, Malang, dan kota-kota utama lainnya.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h4>Pengiriman Tepat Waktu</h4>
+                    <p>Sistem penjadwalan yang efisien memastikan stok di tempat mitra selalu tersedia saat dibutuhkan.</p>
+                </div>
+            </div>
+
+            <div class="distribusi-gallery">
+                <div class="gallery-item">
+                    <img src="https://images.unsplash.com/photo-1580674285054-bed31e145f59?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80" alt="Proses Muat Telur Aman" loading="lazy">
+                </div>
+                <div class="gallery-item">
+                    <img src="https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80" alt="Gudang Penyimpanan Sementara" loading="lazy">
+                </div>
+                <div class="cta-distribusi-box">
+                   <h3>Butuh Suplai Rutin & Cepat?</h3>
+                   <p>Jadilah prioritas dalam rute pengiriman kami.</p>
+                   <a href="#mitra" class="btn-primary btn-sm">Hubungi Tim Logistik</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="mitra" class="mitra-section">
+        <div class="poster-card">
+            <div class="badge-green">
+                <span class="text-yellow">Mitra</span> Siap Kirim! 🛵
+            </div>
+            <h2>Minimum Pemesanan Mitra</h2>
+            <div class="huge-text">10 KG</div>
+            <p class="subtitle">Dapatkan Harga Spesial Reseller</p>
+            
+            <div class="price-box">
+                <span class="price-strike">Rp. 27.900</span>
+                <span class="price-final">Rp. 27.000</span>
+                <span class="per-kg">/ KG</span>
+            </div>
+
+            <a href="https://wa.me/6285748175548?text=Halo%20Admin%20Logistik%20Ashda%20Nusantara%20Farm%2C%20%F0%9F%8C%BE%0A%0ASaya%20tertarik%20mendaftar%20sebagai%20Mitra%20Agen%2FReseller%20untuk%20mendapatkan%20suplai%20telur%20rutin%20dengan%20harga%20khusus%20%28Rp%2027.000%2Fkg%29.%0A%0ABerikut%20data%20diri%20saya%3A%0A-%20Nama%20Usaha%2FPribadi%3A%20%0A-%20Alamat%20Lengkap%20%28Kec%2FKab%29%3A%20%0A-%20Estimasi%20Ambil%20%28Min.%2010%20KG%29%3A%20......%20KG%0A%0AMohon%20informasi%20terkait%20jadwal%20pengiriman%20dan%20prosedurnya.%20Terima%20kasih!%20%F0%9F%A4%9D" class="btn-whatsapp" target="_blank">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 1.833 6.353L0 24l5.809-1.508A11.9 11.9 0 0 0 11.944 24c6.627 0 12.056-5.373 12.056-12S18.571 0 11.944 0zm0 21.967a9.95 9.95 0 0 1-5.09-1.396l-.365-.215-3.784.983.999-3.663-.235-.373A9.9 9.9 0 0 1 2.056 12c0-5.46 4.494-9.9 9.888-9.9 5.445 0 9.888 4.44 9.888 9.9 0 5.46-4.443 9.967-9.888 9.967zm5.422-7.407c-.297-.15-1.761-.864-2.034-.962-.272-.1-.47-.15-.668.15-.198.298-.767.962-.94 1.16-.173.199-.346.223-.643.074-.297-.149-1.255-.458-2.39-1.465-.88-.784-1.474-1.753-1.647-2.05-.173-.298-.018-.458.13-.607.134-.134.297-.346.445-.52.15-.173.198-.297.297-.494.1-.198.05-.372-.025-.52-.074-.15-.668-1.594-.915-2.183-.242-.574-.488-.495-.668-.505-.173-.01-.371-.01-.569-.01-.198 0-.52.074-.792.371-.272.298-1.039 1.004-1.039 2.45 0 1.446 1.064 2.846 1.212 3.045.149.198 2.096 3.167 5.076 4.43.708.3 1.262.48 1.693.614.713.223 1.36.19 1.869.115.572-.084 1.761-.713 2.008-1.405.247-.693.247-1.287.173-1.406-.074-.124-.272-.198-.569-.347z"/>
+                </svg>
+                Daftar Mitra via WhatsApp
+            </a>
+            <p class="wa-hint">Klik tombol di atas untuk pendaftaran otomatis</p>
+        </div>
+    </section>
+
+    <section id="edukasi" class="edukasi-section">
+        <h2 class="section-title">Edukasi Peternakan</h2>
+        <div class="grid-container" id="edukasi-grid">
+            </div>
+    </section>
+
+    <section id="berita" class="berita-section">
+        <h2 class="section-title">Berita & Kebijakan Terbaru</h2>
+        <div class="grid-container" id="berita-grid">
+            </div>
+    </section>
+
+    <footer>
+        <a href="https://wa.me/6281556456075?text=Halo%20Admin%20Ashda%20Nusantara%20Farm%2C%20saya%20ingin%20bertanya%20seputar%20informasi%20produk%20dan%20layanan%20kemitraan." class="footer-contact-btn" target="_blank">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 1.833 6.353L0 24l5.809-1.508A11.9 11.9 0 0 0 11.944 24c6.627 0 12.056-5.373 12.056-12S18.571 0 11.944 0zm0 21.967a9.95 9.95 0 0 1-5.09-1.396l-.365-.215-3.784.983.999-3.663-.235-.373A9.9 9.9 0 0 1 2.056 12c0-5.46 4.494-9.9 9.888-9.9 5.445 0 9.888 4.44 9.888 9.9 0 5.46-4.443 9.967-9.888 9.967zm5.422-7.407c-.297-.15-1.761-.864-2.034-.962-.272-.1-.47-.15-.668.15-.198.298-.767.962-.94 1.16-.173.199-.346.223-.643.074-.297-.149-1.255-.458-2.39-1.465-.88-.784-1.474-1.753-1.647-2.05-.173-.298-.018-.458.13-.607.134-.134.297-.346.445-.52.15-.173.198-.297.297-.494.1-.198.05-.372-.025-.52-.074-.15-.668-1.594-.915-2.183-.242-.574-.488-.495-.668-.505-.173-.01-.371-.01-.569-.01-.198 0-.52.074-.792.371-.272.298-1.039 1.004-1.039 2.45 0 1.446 1.064 2.846 1.212 3.045.149.198 2.096 3.167 5.076 4.43.708.3 1.262.48 1.693.614.713.223 1.36.19 1.869.115.572-.084 1.761-.713 2.008-1.405.247-.693.247-1.287.173-1.406-.074-.124-.272-.198-.569-.347z"/>
+            </svg>
+            Hubungi (WA) : <strong>0857 4817 5548</strong>
+        </a>
+        <p>&copy; 2026 Ashda Nusantara Farm - Sidoarjo.</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

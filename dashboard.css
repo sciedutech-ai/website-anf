@@ -1,0 +1,11 @@
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #f1f1f1; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* Utility untuk menyembunyikan elemen */
+.hidden { display: none !important; }
+
+/* Transisi halus untuk semua tombol */
+button, a { transition: all 0.2s ease-in-out; }

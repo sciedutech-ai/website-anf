@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Ashda Nusantara Farm</title>
+    <link rel="icon" href="favicon.png" type="image/png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="dashboard.css">
+</head>
+<body class="bg-gray-100 flex h-screen overflow-hidden font-sans relative">
+
+    <div id="sidebarOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-20 hidden md:hidden"></div>
+
+    <aside id="sidebar" class="w-64 bg-green-800 text-white flex flex-col shadow-xl fixed inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 transition duration-300 ease-in-out z-30">
+        <div class="p-6 border-b border-green-700 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <img src="logo.png" alt="Logo Ashda Farm" class="h-10 w-auto object-contain">
+                <div>
+                    <h1 class="text-xl font-bold leading-tight">Ashda Nusantara Farm</h1>
+                    <p class="text-xs text-green-300">Admin Panel</p>
+                </div>
+            </div>
+            <button id="closeSidebar" class="md:hidden text-green-300 hover:text-white">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+        </div>
+        
+        <nav class="flex-1 overflow-y-auto py-4">
+            <ul class="space-y-1" id="navMenu">
+                <li><a href="#" data-target="sec-dashboard" class="nav-link active flex items-center gap-3 px-6 py-3 bg-green-900 border-l-4 border-yellow-400"><i class="fa-solid fa-chart-line w-5"></i> Dashboard Utama</a></li>
+                <li><a href="#" data-target="sec-kandang" class="nav-link flex items-center gap-3 px-6 py-3 hover:bg-green-700 transition-colors"><i class="fa-solid fa-house-chimney w-5"></i> Manajemen Kandang</a></li>
+                <li><a href="#" data-target="sec-produksi" class="nav-link flex items-center gap-3 px-6 py-3 hover:bg-green-700 transition-colors"><i class="fa-solid fa-clipboard-list w-5"></i> Jurnal Produksi</a></li>
+                <li><a href="#" data-target="sec-kalkulator" class="nav-link flex items-center gap-3 px-6 py-3 hover:bg-green-700 transition-colors"><i class="fa-solid fa-calculator w-5"></i> Kalkulator Ekonomi</a></li>
+                <li><a href="#" data-target="sec-laporan" class="nav-link flex items-center gap-3 px-6 py-3 hover:bg-green-700 transition-colors"><i class="fa-solid fa-file-invoice-dollar w-5"></i> Laporan Keuangan</a></li>
+                <li><a href="#" data-target="sec-harga" class="nav-link flex items-center gap-3 px-6 py-3 hover:bg-green-700 transition-colors"><i class="fa-solid fa-tags w-5"></i> Harga Telur Jatim</a></li>
+            </ul>
+        </nav>
+
+        <div class="p-4 border-t border-green-700 text-sm text-green-300 flex justify-between items-center">
+            <div><i class="fa-solid fa-user-circle mr-2"></i> Admin Aktif</div>
+            <button id="btnLogout" class="text-red-400 hover:text-red-200 transition-colors" title="Keluar / Logout">
+                <i class="fa-solid fa-right-from-bracket"></i>
+            </button>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-screen overflow-y-auto w-full">
+        <header class="bg-white shadow-sm p-4 flex justify-between items-center sticky top-0 z-10">
+            <div class="flex items-center gap-4">
+                <button id="openSidebar" class="md:hidden text-gray-600 hover:text-green-800 focus:outline-none">
+                    <i class="fa-solid fa-bars text-2xl"></i>
+                </button>
+                <h2 id="pageTitle" class="text-xl md:text-2xl font-semibold text-gray-800">Dashboard Utama</h2>
+            </div>
+            <div class="text-xs md:text-sm text-gray-500 font-medium" id="current-date"></div>
+        </header>
+
+        <div class="p-4 md:p-6 w-full max-w-7xl mx-auto">
+            
+            <section id="sec-dashboard" class="content-section block">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
+                    <div class="bg-white p-5 rounded-lg shadow-sm border-l-4 border-green-500">
+                        <p class="text-sm text-gray-500">Populasi Aktif</p>
+                        <h3 class="text-2xl font-bold text-gray-800" id="dash-populasi">Memuat...</h3>
+                    </div>
+                    <div class="bg-white p-5 rounded-lg shadow-sm border-l-4 border-yellow-500">
+                        <p class="text-sm text-gray-500">Produksi Telur (Hari Ini)</p>
+                        <h3 class="text-2xl font-bold text-gray-800" id="dash-produksi-hari-ini"><i class="fa-solid fa-spinner fa-spin text-gray-300"></i></h3>
+                    </div>
+                    <div class="bg-white p-5 rounded-lg shadow-sm border-l-4 border-blue-500">
+                        <p class="text-sm text-gray-500">HDP Rata-rata (Hari Ini)</p>
+                        <h3 class="text-2xl font-bold text-gray-800" id="dash-hdp-hari-ini"><i class="fa-solid fa-spinner fa-spin text-gray-300"></i></h3>
+                    </div>
+                    <div class="bg-white p-5 rounded-lg shadow-sm border-l-4 border-red-500">
+                        <p class="text-sm text-gray-500">Arus Kas Bersih (Bulan Ini)</p>
+                        <h3 class="text-2xl font-bold text-gray-800" id="dash-kas-bulan-ini"><i class="fa-solid fa-spinner fa-spin text-gray-300"></i></h3>
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
+                    <h3 class="font-semibold text-gray-800 mb-4">Grafik Produksi vs Konsumsi Pakan (7 Hari Terakhir)</h3>
+                    <div class="relative h-72 w-full">
+                        <canvas id="chartProduksi"></canvas>
+                    </div>
+                </div>
+            </section>
+
+
+            <section id="sec-kandang" class="content-section hidden">
+                <div class="bg-white rounded-lg shadow-sm p-4 md:p-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                        <h3 class="text-lg font-semibold text-gray-800">Daftar Kandang & Populasi</h3>
+                        <button id="btnTambahKandang" class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700 flex items-center"><i class="fa-solid fa-plus mr-2"></i>Tambah Kandang</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-gray-50 text-gray-600 border-b">
+                                    <th class="p-3 text-sm">ID / Nama</th>
+                                    <th class="p-3 text-sm">Tipe</th>
+                                    <th class="p-3 text-sm">Kapasitas</th>
+                                    <th class="p-3 text-sm">Populasi Aktif</th>
+                                    <th class="p-3 text-sm">Status</th>
+                                    <th class="p-3 text-sm w-24">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabel-kandang-body">
+                                <tr>
+                                    <td colspan="6" class="text-center p-8 text-gray-500">
+                                        <i class="fa-solid fa-spinner fa-spin mr-2"></i> Memuat data kandang...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="sec-produksi" class="content-section hidden">
+                <div class="bg-white rounded-lg shadow-sm p-4 md:p-6 max-w-4xl">
+                    <form id="formProduksi" class="space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="space-y-4">
+                                <div><label class="block text-sm font-medium text-gray-700">Tanggal</label><input type="date" id="tanggal" required class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-green-500 border p-2"></div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Kandang</label>
+                                    <select id="idKandang" required class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-green-500 border p-2">
+                                        <option value="">-- Memuat Data Kandang --</option>
+                                    </select>
+                                </div>
+                                <div><label class="block text-sm font-medium text-gray-700">Pakan (Kg)</label><input type="number" step="0.1" id="pakanKg" required class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-green-500 border p-2"></div>
+                                <div><label class="block text-sm font-medium text-gray-700">Mortalitas (Ekor)</label><input type="number" id="mortalitas" value="0" min="0" required class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-green-500 border p-2"></div>
+                            </div>
+                            <div class="space-y-4">
+                                <div><label class="block text-sm font-medium text-gray-700">Telur Utuh (Gram)</label><input type="number" step="1" id="telurUtuhGr" required class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-green-500 border p-2"></div>
+                                <div><label class="block text-sm font-medium text-gray-700">Telur Bentes / Retak (Gram)</label><input type="number" step="1" id="telurBentesGr" value="0" required class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-green-500 border p-2"></div>
+                            </div>
+                        </div>
+                        <div class="pt-4 border-t flex justify-end gap-3">
+                            <button type="submit" id="btnSubmit" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-2"><i class="fa-solid fa-save"></i> Simpan Data</button>
+                        </div>
+                    </form>
+                    <div id="statusMsg" class="mt-4 p-3 rounded-md hidden"></div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow-sm p-4 md:p-6 mt-6 border-t-4 border-yellow-500">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Riwayat Produksi (30 Data Terakhir)</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead class="bg-gray-50 text-gray-600 border-b">
+                                <tr>
+                                    <th class="p-3">Tanggal</th>
+                                    <th class="p-3">Kandang</th>
+                                    <th class="p-3">Pakan (Kg)</th>
+                                    <th class="p-3">Telur Utuh (Gr)</th>
+                                    <th class="p-3">Bentes (Gr)</th>
+                                    <th class="p-3">Mati</th>
+                                    <th class="p-3">HDP</th>
+                                    <th class="p-3">FCR</th>
+                                    <th class="p-3 text-right">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabel-riwayat-produksi">
+                                <tr><td colspan="9" class="text-center p-8 text-gray-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Memuat riwayat...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="sec-kalkulator" class="content-section hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 bg-white rounded-lg shadow-sm p-4 md:p-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Input Jurnal Ekonomi</h3>
+                        <form id="formEkonomi" class="space-y-4">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Tanggal Transaksi</label>
+                                    <input type="date" id="tglTrx" required class="mt-1 block w-full rounded border-gray-300 border p-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Tipe Transaksi</label>
+                                    <select id="tipeTrx" required class="mt-1 block w-full rounded border-gray-300 border p-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                                        <option value="">-- Pilih Tipe --</option>
+                                        <option value="pemasukan">Pemasukan (Revenue)</option>
+                                        <option value="pengeluaran">Pengeluaran (Cost / Opex)</option>
+                                        <option value="investasi">Investasi / Hutang (Capex)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Kategori</label>
+                                    <select id="kategoriTrx" required disabled class="mt-1 block w-full rounded border-gray-300 border p-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400">
+                                        <option value="">-- Pilih Tipe Dulu --</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Nominal (Rp)</label>
+                                    <input type="number" id="nominalTrx" required min="0" placeholder="0" class="mt-1 block w-full rounded border-gray-300 border p-2 font-bold text-lg text-gray-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                                </div>
+                                <div class="sm:col-span-2">
+                                    <label class="block text-sm font-medium text-gray-700">Keterangan / Catatan Tambahan (Opsional)</label>
+                                    <input type="text" id="keteranganTrx" placeholder="Contoh: Pembayaran pakan 50 sak ke supplier A..." class="mt-1 block w-full rounded border-gray-300 border p-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                                </div>
+                            </div>
+                            <button type="submit" id="btnSubmitEkonomi" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition-colors flex justify-center items-center gap-2 mt-4">
+                                <i class="fa-solid fa-plus-circle"></i> Catat ke Buku Kas
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <div class="bg-gray-800 rounded-lg shadow-sm p-4 md:p-6 text-white h-fit">
+                        <h3 class="text-lg font-semibold mb-4 border-b border-gray-600 pb-2"><i class="fa-solid fa-lightbulb text-yellow-400 mr-2"></i> Analisis Cepat</h3>
+                        <div class="space-y-4" id="panel-analisis-ekonomi">
+                            <div><p class="text-sm text-gray-400">Total Investasi Berjalan</p><p class="text-xl font-bold text-white"><i class="fa-solid fa-spinner fa-spin"></i></p></div>
+                            <div><p class="text-sm text-gray-400">Laba / Rugi Berjalan</p><p class="text-xl font-bold text-gray-300"><i class="fa-solid fa-spinner fa-spin"></i></p></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="sec-laporan" class="content-section hidden">
+                <div class="bg-white rounded-lg shadow-sm p-4 md:p-8 mb-6 border-t-4 border-gray-800">
+                    
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 border-b-2 border-gray-200 pb-4">
+                        <div>
+                            <h3 class="text-2xl font-bold text-gray-800 uppercase tracking-wide"><i class="fa-solid fa-file-invoice-dollar text-green-600 mr-2"></i> Laporan Keuangan</h3>
+                            <p class="text-sm text-gray-500 mt-1">Ashda Nusantara Farm - Buku Besar Jurnal Kas</p>
+                        </div>
+                        <div class="flex gap-2 print:hidden">
+                            <select id="filterBulanLaporan" class="border border-gray-300 rounded p-2 text-sm bg-gray-50 hover:bg-gray-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-500">
+                                <option value="all">Semua Bulan</option>
+                                <option value="01">Januari</option>
+                                <option value="02">Februari</option>
+                                <option value="03" selected>Maret</option>
+                                <option value="04">April</option>
+                                <option value="05">Mei</option>
+                                <option value="06">Juni</option>
+                                <option value="07">Juli</option>
+                                <option value="08">Agustus</option>
+                                <option value="09">September</option>
+                                <option value="10">Oktober</option>
+                                <option value="11">November</option>
+                                <option value="12">Desember</option>
+                            </select>
+                            <select id="filterTahunLaporan" class="border border-gray-300 rounded p-2 text-sm bg-gray-50 hover:bg-gray-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-500">
+                                <option value="2026">2026</option>
+                                <option value="2027">2027</option>
+                                <option value="2028">2028</option>
+                            </select>
+                            <button onclick="window.print()" class="bg-gray-800 text-white px-4 py-2 rounded text-sm hover:bg-gray-700 transition-colors shadow-sm"><i class="fa-solid fa-print mr-2"></i> Cetak PDF</button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                        <div class="bg-green-50 p-4 rounded-lg border border-green-200 shadow-sm">
+                            <p class="text-xs text-green-600 font-bold uppercase tracking-wider mb-1">Total Pemasukan</p>
+                            <h4 class="text-xl font-bold text-green-800" id="lap-total-pemasukan">Rp 0</h4>
+                        </div>
+                        <div class="bg-red-50 p-4 rounded-lg border border-red-200 shadow-sm">
+                            <p class="text-xs text-red-600 font-bold uppercase tracking-wider mb-1">Total Pengeluaran (Opex)</p>
+                            <h4 class="text-xl font-bold text-red-800" id="lap-total-pengeluaran">Rp 0</h4>
+                        </div>
+                        <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 shadow-sm">
+                            <p class="text-xs text-blue-600 font-bold uppercase tracking-wider mb-1">Laba Bersih Operasional</p>
+                            <h4 class="text-xl font-bold text-blue-800" id="lap-laba-bersih">Rp 0</h4>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded-lg border border-purple-200 shadow-sm">
+                            <p class="text-xs text-purple-600 font-bold uppercase tracking-wider mb-1">Investasi / Hutang (Capex)</p>
+                            <h4 class="text-xl font-bold text-purple-800" id="lap-total-investasi">Rp 0</h4>
+                        </div>
+                    </div>
+
+                    <h4 class="font-bold text-gray-800 mb-3 border-b-2 pb-2 text-lg">Rincian Transaksi (Buku Kas)</h4>
+                    <div class="overflow-x-auto rounded-lg border border-gray-200">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead class="bg-gray-100 text-gray-700 uppercase text-xs tracking-wider">
+                                <tr>
+                                    <th class="p-4 font-bold border-b">Tanggal</th>
+                                    <th class="p-4 font-bold border-b text-center">Tipe</th>
+                                    <th class="p-4 font-bold border-b">Kategori & Keterangan</th>
+                                    <th class="p-4 font-bold border-b text-right text-green-700">Pemasukan (In)</th>
+                                    <th class="p-4 font-bold border-b text-right text-red-700">Pengeluaran (Out)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabel-buku-besar" class="bg-white divide-y divide-gray-200">
+                                <tr><td colspan="5" class="text-center p-8 text-gray-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Memuat Buku Kas...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="mt-8 pt-4 border-t text-xs text-gray-400 text-right print:block hidden">
+                        Dokumen dicetak secara otomatis dari Sistem Ashda Nusantara Farm
+                    </div>
+                </div>
+            </section>
+
+            <section id="sec-harga" class="content-section hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-lg shadow-sm p-4 md:p-6 border-t-4 border-blue-600 h-fit">
+                        <h3 class="font-semibold text-gray-800 mb-2">Harga Telur (BPS/Pinsar Jatim)</h3>
+                        <p class="text-4xl font-bold text-blue-600 mb-1" id="display-harga-telur"><i class="fa-solid fa-spinner fa-spin text-xl text-gray-300"></i></p>
+                        <p class="text-sm font-medium" id="display-trend-harga">Memuat tren pasar...</p>
+                        
+                        <div class="mt-6 pt-4 border-t">
+                            <label class="block text-sm text-gray-600 mb-2">Update Manual Patokan Harga (Hari Ini)</label>
+                            <form id="formHargaTelur" class="flex gap-2">
+                                <input type="number" id="inputHargaTelur" required placeholder="Cth: 26500" class="border border-gray-300 rounded p-2 flex-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                <button type="submit" id="btnUpdateHarga" class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 transition-colors">Update Sistem</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow-sm p-4 md:p-6">
+                        <h3 class="font-semibold text-gray-800 mb-4 border-b pb-2">Riwayat Harga Terakhir</h3>
+                        <div class="overflow-y-auto max-h-60">
+                            <table class="w-full text-left border-collapse text-sm">
+                                <thead class="sticky top-0 bg-white">
+                                    <tr class="text-gray-600 border-b">
+                                        <th class="pb-2">Tanggal</th>
+                                        <th class="pb-2">Harga / Kg</th>
+                                        <th class="pb-2 text-right">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabel-riwayat-harga">
+                                    <tr><td colspan="3" class="text-center py-4 text-gray-500">Memuat riwayat...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <div id="modalKandang" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg w-full max-w-md p-6 relative shadow-2xl">
+            <button id="closeModalKandang" class="absolute top-4 right-4 text-gray-400 hover:text-gray-800 transition-colors">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+            <h3 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Data Kandang Baru</h3>
+            
+            <form id="formTambahKandang" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">ID / Kode Kandang</label>
+                    <input type="text" id="idKandangBaru" placeholder="Contoh: KNDG-003" required class="mt-1 block w-full rounded border-gray-300 border p-2 focus:border-green-500 focus:ring focus:ring-green-200">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Nama Kandang</label>
+                    <input type="text" id="namaKandangBaru" placeholder="Contoh: Kandang C" required class="mt-1 block w-full rounded border-gray-300 border p-2 focus:border-green-500 focus:ring focus:ring-green-200">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Kapasitas Maks.</label>
+                        <input type="number" id="kapasitasKandangBaru" required class="mt-1 block w-full rounded border-gray-300 border p-2 focus:border-green-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Populasi Awal</label>
+                        <input type="number" id="populasiKandangBaru" required class="mt-1 block w-full rounded border-gray-300 border p-2 focus:border-green-500">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Tipe Kandang</label>
+                        <select id="tipeKandangBaru" class="mt-1 block w-full rounded border-gray-300 border p-2 focus:border-green-500">
+                            <option value="Close House">Close House</option>
+                            <option value="Open House">Open House</option>
+                            <option value="Semi-Close">Semi-Close</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Status</label>
+                        <select id="statusKandangBaru" class="mt-1 block w-full rounded border-gray-300 border p-2 focus:border-green-500">
+                            <option value="Produksi">Produksi</option>
+                            <option value="Persiapan Pullet">Persiapan Pullet</option>
+                            <option value="Kosong">Kosong</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="pt-4 mt-2 border-t">
+                    <button type="submit" id="btnSimpanKandangBaru" class="w-full bg-green-600 text-white font-semibold py-2 rounded hover:bg-green-700 transition-colors flex justify-center items-center gap-2">
+                        <i class="fa-solid fa-save"></i> Simpan ke Database
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module" src="dashboard.js"></script>
+</body>
+</html>
