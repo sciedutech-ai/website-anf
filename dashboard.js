@@ -1,12 +1,12 @@
 // ============================================================================
-// DASHBOARD.JS - ASHDA NUSANTARA FARM (FULL CRUD FIREBASE)
+// DASHBOARD.JS - SAAS MULTI-TENANT (ASHDA NUSANTARA FARM)
 // ============================================================================
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { 
     getFirestore, collection, addDoc, setDoc, doc, updateDoc, 
-    deleteDoc, onSnapshot, increment, query, orderBy, limit, getDoc // <-- TAMBAH getDoc DI SINI
+    deleteDoc, onSnapshot, increment, query, orderBy, limit, getDoc 
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 // --- 1. KONFIGURASI FIREBASE ---
@@ -27,14 +27,18 @@ const db = getFirestore(app);
 const formatAngka = (angka) => new Intl.NumberFormat('id-ID').format(angka);
 const formatRupiah = (angka) => 'Rp ' + new Intl.NumberFormat('id-ID').format(angka);
 
+// Variabel Global untuk Peta
+let myMap;
+let userMarker;
+let otherMarkers = [];
 
 // --- 2. PENJAGA KEAMANAN (AUTH GUARD) ---
 onAuthStateChanged(auth, (user) => {
     if (!user) {
         window.location.replace("login.html");
     } else {
-        console.log("Admin terotorisasi:", user.email);
-        initDashboard(); // Jalankan fungsi utama jika login sukses
+        console.log("Tenant terotorisasi UID:", user.uid);
+        initDashboard(user.uid); // Passing userId ke fungsi utama
     }
 });
 
@@ -45,30 +49,26 @@ document.getElementById('btnLogout').addEventListener('click', () => {
     }
 });
 
-
 // --- 3. FUNGSI UTAMA DASHBOARD ---
-function initDashboard() {
+function initDashboard(userId) {
     setupNavigasi();
-    initDashboardUtama(); // <--- TAMBAHKAN INI
-    initCRUDKandang();
-    initCRUDProduksi();
-    initCRUDEkonomi();
-    initCRUDHarga(); 
-    initLaporanKeuangan(); 
+    initProfilDanPeta(userId);
+    initDashboardUtama(userId); 
+    initCRUDKandang(userId);
+    initCRUDProduksi(userId);
+    initCRUDEkonomi(userId);
+    initCRUDHarga(userId); 
+    initLaporanKeuangan(userId); 
 }
-
 
 // ==========================================
 // A. SISTEM NAVIGASI & UI DASAR
 // ==========================================
 function setupNavigasi() {
-    // Set Tanggal Hari Ini
     const today = new Date();
     document.getElementById('current-date').innerText = today.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    const inputsTanggal = document.querySelectorAll('input[type="date"]');
-    inputsTanggal.forEach(input => input.value = today.toISOString().split('T')[0]);
+    document.querySelectorAll('input[type="date"]').forEach(input => input.value = today.toISOString().split('T')[0]);
 
-    // Navigasi Antar Halaman
     const navLinks = document.querySelectorAll('.nav-link');
     const sections = document.querySelectorAll('.content-section');
     const pageTitle = document.getElementById('pageTitle');
@@ -100,20 +100,222 @@ function setupNavigasi() {
             this.classList.remove('hover:bg-green-700');
 
             if (window.innerWidth < 768) toggleSidebar();
+            
+            // Fix bug peta Leaflet jika tab baru dibuka
+            if(targetId === 'sec-pengaturan' && myMap) {
+                setTimeout(() => myMap.invalidateSize(), 300);
+            }
         });
     });
 }
 
+// ==========================================
+// B. PROFIL & PETA (MULTI-TENANT)
+// ==========================================
+function initProfilDanPeta(userId) {
+    const sidebarTitle = document.querySelector('aside h1');
+    const profilDocRef = doc(db, "peternakan", userId); 
+
+    // 1. Inisialisasi Peta Leaflet
+    myMap = L.map('mapContainer').setView([-7.5, 112.5], 8); // Default Jawa Timur
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+    }).addTo(myMap);
+
+    const blueIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] });
+    const redIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] });
+
+    // 2. Baca Data Profil & Tampilkan
+    onSnapshot(profilDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            sidebarTitle.innerText = data.nama_peternakan || "Ashda Nusantara";
+            
+            document.getElementById('inputNamaFarm').value = data.nama_peternakan || "";
+            document.getElementById('inputLat').value = data.lat || "";
+            document.getElementById('inputLng').value = data.lng || "";
+
+            // Pasang Marker Sendiri
+            if (data.lat && data.lng) {
+                const latLng = [parseFloat(data.lat), parseFloat(data.lng)];
+                if (userMarker) myMap.removeLayer(userMarker);
+                userMarker = L.marker(latLng, {icon: blueIcon}).addTo(myMap).bindPopup("<b>Lokasi Anda</b><br>"+(data.nama_peternakan||"")).openPopup();
+                myMap.setView(latLng, 11);
+            }
+        }
+    });
+
+    // 3. Baca Data Peternak Lain (Koleksi Publik)
+    onSnapshot(collection(db, "public_farms"), (snapshot) => {
+        otherMarkers.forEach(m => myMap.removeLayer(m));
+        otherMarkers = [];
+
+        snapshot.forEach(docSnap => {
+            if (docSnap.id !== userId) { // Sembunyikan milik sendiri dari marker merah
+                const data = docSnap.data();
+                if (data.lat && data.lng) {
+                    const marker = L.marker([parseFloat(data.lat), parseFloat(data.lng)], {icon: redIcon})
+                        .addTo(myMap)
+                        .bindPopup(`<b>Mitra ANF:</b><br>${data.nama_peternakan}`);
+                    otherMarkers.push(marker);
+                }
+            }
+        });
+    });
+
+    // 4. Klik Peta untuk Set Lokasi
+    myMap.on('click', function(e) {
+        document.getElementById('inputLat').value = e.latlng.lat.toFixed(6);
+        document.getElementById('inputLng').value = e.latlng.lng.toFixed(6);
+        
+        if (userMarker) myMap.removeLayer(userMarker);
+        userMarker = L.marker(e.latlng, {icon: blueIcon}).addTo(myMap).bindPopup("Lokasi Terpilih! Klik Simpan.").openPopup();
+    });
+
+    // 5. Submit Form Profil
+    document.getElementById('formProfil').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('btnSimpanProfil');
+        const msg = document.getElementById('msgProfil');
+        btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
+        
+        try {
+            const namaBaru = document.getElementById('inputNamaFarm').value;
+            const lat = document.getElementById('inputLat').value;
+            const lng = document.getElementById('inputLng').value;
+
+            // Simpan ke Private Doc
+            await setDoc(profilDocRef, {
+                nama_peternakan: namaBaru,
+                lat: lat,
+                lng: lng
+            }, { merge: true });
+
+            // Simpan ke Public Doc 
+            await setDoc(doc(db, "public_farms", userId), {
+                nama_peternakan: namaBaru,
+                lat: lat,
+                lng: lng
+            });
+
+            msg.className = "mt-3 p-3 text-sm font-medium bg-green-100 text-green-800 rounded block";
+            msg.innerHTML = '<i class="fa-solid fa-check-circle"></i> Profil berhasil diperbarui!';
+        } catch (error) {
+            msg.className = "mt-3 p-3 text-sm font-medium bg-red-100 text-red-800 rounded block";
+            msg.innerText = "Gagal menyimpan: " + error.message;
+        } finally {
+            btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-save mr-2"></i> Simpan Profil & Lokasi';
+            setTimeout(() => msg.classList.add('hidden'), 4000);
+        }
+    });
+}
 
 // ==========================================
-// B. CRUD MANAJEMEN KANDANG (DENGAN FITUR EDIT)
+// C. SINKRONISASI DASHBOARD UTAMA & GRAFIK
 // ==========================================
-function initCRUDKandang() {
+function initDashboardUtama(userId) {
+    const elProduksi = document.getElementById('dash-produksi-hari-ini');
+    const elHdp = document.getElementById('dash-hdp-hari-ini');
+    const elKas = document.getElementById('dash-kas-bulan-ini');
+    let myChart = null;
+
+    const qProd = query(collection(db, "peternakan", userId, "produksi_harian"), orderBy("tanggal", "desc"), limit(50));
+    
+    onSnapshot(qProd, (snapshot) => {
+        const todayStr = new Date().toISOString().split('T')[0];
+        let totalTelurHariIni = 0; let totalHdpHariIni = 0; let countKandangHariIni = 0;
+        const rekapHarian = {};
+
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const tgl = data.tanggal;
+
+            if (!rekapHarian[tgl]) rekapHarian[tgl] = { telur: 0, pakan: 0 };
+            rekapHarian[tgl].telur += data.total_telur_kg;
+            rekapHarian[tgl].pakan += data.pakan_habis_kg;
+
+            if (tgl === todayStr) {
+                totalTelurHariIni += data.total_telur_kg;
+                totalHdpHariIni += data.hdp_persen;
+                countKandangHariIni++;
+            }
+        });
+
+        elProduksi.innerHTML = `${totalTelurHariIni.toFixed(1)} <span class="text-sm font-normal text-gray-500">kg</span>`;
+        if (countKandangHariIni > 0) {
+            elHdp.innerHTML = `${(totalHdpHariIni / countKandangHariIni).toFixed(1)} <span class="text-sm font-normal text-gray-500">%</span>`;
+        } else {
+            elHdp.innerHTML = `0 <span class="text-sm font-normal text-gray-500">%</span>`;
+        }
+
+        const sortedDates = Object.keys(rekapHarian).sort().slice(-7); 
+        const labels = []; const dataTelur = []; const dataPakan = [];
+
+        sortedDates.forEach(tgl => {
+            labels.push(new Date(tgl).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }));
+            dataTelur.push(rekapHarian[tgl].telur.toFixed(1));
+            dataPakan.push(rekapHarian[tgl].pakan.toFixed(1));
+        });
+
+        const ctx = document.getElementById('chartProduksi').getContext('2d');
+        if (myChart) myChart.destroy();
+
+        myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: 'Produksi Telur (Kg)', data: dataTelur, borderColor: '#eab308', backgroundColor: 'rgba(234, 179, 8, 0.1)', borderWidth: 3, tension: 0.3, fill: true, yAxisID: 'y' },
+                    { label: 'Konsumsi Pakan (Kg)', data: dataPakan, borderColor: '#3b82f6', backgroundColor: 'transparent', borderWidth: 2, borderDash: [5, 5], tension: 0.3, yAxisID: 'y1' }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { position: 'top' } },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Telur (Kg)' } },
+                    y1: { type: 'linear', display: true, position: 'right', title: { display: true, text: 'Pakan (Kg)' }, grid: { drawOnChartArea: false } }
+                }
+            }
+        });
+    });
+
+    onSnapshot(collection(db, "peternakan", userId, "transaksi_keuangan"), (snapshot) => {
+        const d = new Date();
+        const currentMonth = String(d.getMonth() + 1).padStart(2, '0');
+        const currentYear = String(d.getFullYear());
+
+        let kasMasukBulanIni = 0; let kasKeluarBulanIni = 0;
+
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const tglTrx = new Date(data.tanggal_transaksi);
+            const trxMonth = String(tglTrx.getMonth() + 1).padStart(2, '0');
+            const trxYear = String(tglTrx.getFullYear());
+
+            if (trxMonth === currentMonth && trxYear === currentYear) {
+                if (data.tipe_transaksi === 'pemasukan') kasMasukBulanIni += data.nominal;
+                else kasKeluarBulanIni += data.nominal; 
+            }
+        });
+
+        const netCashFlow = kasMasukBulanIni - kasKeluarBulanIni;
+        
+        if (netCashFlow > 0) elKas.innerHTML = `<span class="text-green-600">+ ${formatRupiah(netCashFlow)}</span>`;
+        else if (netCashFlow < 0) elKas.innerHTML = `<span class="text-red-600">- ${formatRupiah(Math.abs(netCashFlow))}</span>`;
+        else elKas.innerHTML = formatRupiah(0);
+    });
+}
+
+// ==========================================
+// D. CRUD MANAJEMEN KANDANG
+// ==========================================
+function initCRUDKandang(userId) {
     const tbodyKandang = document.getElementById('tabel-kandang-body');
     const selectKandang = document.getElementById('idKandang');
     const labelDashPopulasi = document.getElementById('dash-populasi');
     
-    // Variabel untuk mode Edit
     const modal = document.getElementById('modalKandang');
     const formKandang = document.getElementById('formTambahKandang');
     const modalTitle = document.querySelector('#modalKandang h3');
@@ -121,14 +323,15 @@ function initCRUDKandang() {
     
     let isEditMode = false;
     let currentEditId = null;
-    let kandangDataList = {}; // Menyimpan data lokal sementara untuk form edit
-    
-    // 1. READ (Membaca Data Real-time & Render Tabel)
-    onSnapshot(collection(db, "kandang"), (snapshot) => {
+    let kandangDataList = {}; 
+
+    const kandangColl = collection(db, "peternakan", userId, "kandang");
+
+    onSnapshot(kandangColl, (snapshot) => {
         tbodyKandang.innerHTML = '';
         selectKandang.innerHTML = '<option value="">-- Pilih Kandang --</option>';
         let totalPopulasi = 0;
-        kandangDataList = {}; // Reset data lokal
+        kandangDataList = {}; 
 
         if (snapshot.empty) {
             tbodyKandang.innerHTML = `<tr><td colspan="6" class="text-center p-6 text-gray-500">Belum ada data kandang.</td></tr>`;
@@ -140,13 +343,12 @@ function initCRUDKandang() {
             const data = docSnap.data();
             const id = docSnap.id;
             totalPopulasi += data.populasi_aktif;
-            kandangDataList[id] = data; // Simpan data ke memori lokal
+            kandangDataList[id] = data; 
 
             let statusBadge = data.status === 'Produksi' ? 'bg-green-100 text-green-700' : (data.status === 'Kosong' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700');
             
             const tr = document.createElement('tr');
             tr.className = 'border-b hover:bg-gray-50 transition-colors';
-            // Menambahkan Tombol Edit (warna biru) dan Tombol Hapus (warna merah)
             tr.innerHTML = `
                 <td class="p-3 font-medium">${id} <br><span class="text-xs text-gray-500">${data.nama_kandang}</span></td>
                 <td class="p-3">${data.tipe}</td>
@@ -167,97 +369,72 @@ function initCRUDKandang() {
 
         labelDashPopulasi.innerHTML = `${formatAngka(totalPopulasi)} <span class='text-sm font-normal text-gray-500'>ekor</span>`;
 
-        // ==========================================
-        // EVENT LISTENER: TOMBOL EDIT (Di dalam tabel)
-        // ==========================================
         document.querySelectorAll('.btn-edit-kandang').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const idEdit = e.currentTarget.getAttribute('data-id');
                 const data = kandangDataList[idEdit];
                 
-                isEditMode = true; // Aktifkan mode edit
+                isEditMode = true; 
                 currentEditId = idEdit;
                 
-                // Ubah tampilan modal untuk Edit
                 modalTitle.innerText = "Edit Data Kandang";
                 inputId.value = idEdit;
-                inputId.readOnly = true; // ID tidak boleh diedit di database NoSQL
+                inputId.readOnly = true; 
                 inputId.classList.add('bg-gray-100', 'cursor-not-allowed'); 
                 
-                // Isi form dengan data lama
                 document.getElementById('namaKandangBaru').value = data.nama_kandang;
                 document.getElementById('kapasitasKandangBaru').value = data.kapasitas_maksimal;
                 document.getElementById('populasiKandangBaru').value = data.populasi_aktif;
                 document.getElementById('tipeKandangBaru').value = data.tipe;
                 document.getElementById('statusKandangBaru').value = data.status;
                 
-                modal.classList.remove('hidden'); // Munculkan Modal
+                modal.classList.remove('hidden'); 
             });
         });
 
-        // EVENT LISTENER: TOMBOL HAPUS (Di dalam tabel)
         document.querySelectorAll('.btn-hapus-kandang').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 const idHapus = e.currentTarget.getAttribute('data-id');
                 if(confirm(`PERINGATAN: Yakin ingin menghapus kandang ${idHapus} secara permanen?`)) {
-                    await deleteDoc(doc(db, "kandang", idHapus));
+                    await deleteDoc(doc(kandangColl, idHapus));
                 }
             });
         });
     });
 
-    // ==========================================
-    // 2. KONTROL MODAL & SUBMIT FORM (CREATE & UPDATE)
-    // ==========================================
-    
-    // Tombol Tambah Kandang (Buka Modal mode Create)
     document.getElementById('btnTambahKandang').addEventListener('click', () => {
-        isEditMode = false;
-        currentEditId = null;
-        formKandang.reset();
-        
-        // Kembalikan tampilan modal untuk Tambah Baru
+        isEditMode = false; currentEditId = null; formKandang.reset();
         modalTitle.innerText = "Data Kandang Baru";
-        inputId.readOnly = false;
-        inputId.classList.remove('bg-gray-100', 'cursor-not-allowed');
-        
+        inputId.readOnly = false; inputId.classList.remove('bg-gray-100', 'cursor-not-allowed');
         modal.classList.remove('hidden');
     });
 
-    // Tombol Tutup Modal (X)
-    document.getElementById('closeModalKandang').addEventListener('click', () => {
-        modal.classList.add('hidden');
-    });
+    document.getElementById('closeModalKandang').addEventListener('click', () => modal.classList.add('hidden'));
 
-    // Proses Submit (Bisa untuk Simpan Baru atau Perbarui Data)
     formKandang.addEventListener('submit', async (e) => {
         e.preventDefault();
         const btnSimpan = document.getElementById('btnSimpanKandangBaru');
-        btnSimpan.disabled = true;
-        btnSimpan.innerText = isEditMode ? "Memperbarui..." : "Menyimpan...";
+        btnSimpan.disabled = true; btnSimpan.innerText = isEditMode ? "Memperbarui..." : "Menyimpan...";
 
         const idInputVal = inputId.value.trim().toUpperCase();
         
         try {
             if (isEditMode) {
-                // JALUR UPDATE: Perbarui data kandang yang sudah ada
-                await updateDoc(doc(db, "kandang", currentEditId), {
+                await updateDoc(doc(kandangColl, currentEditId), {
                     nama_kandang: document.getElementById('namaKandangBaru').value,
                     kapasitas_maksimal: parseInt(document.getElementById('kapasitasKandangBaru').value),
                     populasi_aktif: parseInt(document.getElementById('populasiKandangBaru').value),
                     tipe: document.getElementById('tipeKandangBaru').value,
                     status: document.getElementById('statusKandangBaru').value,
-                    updated_at: new Date() // Tambahkan penanda waktu update
+                    updated_at: new Date()
                 });
             } else {
-                // JALUR CREATE: Buat data baru dengan cek ID ganda
-                const docRef = doc(db, "kandang", idInputVal);
+                const docRef = doc(kandangColl, idInputVal);
                 const docSnap = await getDoc(docRef);
 
                 if (docSnap.exists()) {
                     alert(`GAGAL: Kode/ID Kandang "${idInputVal}" sudah terpakai! Silakan gunakan kode lain.`);
-                    btnSimpan.disabled = false;
-                    btnSimpan.innerHTML = '<i class="fa-solid fa-save"></i> Simpan ke Database';
+                    btnSimpan.disabled = false; btnSimpan.innerHTML = '<i class="fa-solid fa-save"></i> Simpan ke Database';
                     return; 
                 }
 
@@ -270,38 +447,34 @@ function initCRUDKandang() {
                     created_at: new Date()
                 });
             }
-            
-            formKandang.reset();
-            modal.classList.add('hidden');
+            formKandang.reset(); modal.classList.add('hidden');
         } catch (error) {
             alert("Terjadi kesalahan: " + error.message);
         } finally {
-            btnSimpan.disabled = false;
-            btnSimpan.innerHTML = '<i class="fa-solid fa-save"></i> Simpan ke Database';
+            btnSimpan.disabled = false; btnSimpan.innerHTML = '<i class="fa-solid fa-save"></i> Simpan ke Database';
         }
     });
 }
 
 // ==========================================
-// C. CRUD JURNAL PRODUKSI (DENGAN TABEL RIWAYAT)
+// E. CRUD JURNAL PRODUKSI
 // ==========================================
-function initCRUDProduksi() {
+function initCRUDProduksi(userId) {
     const formProduksi = document.getElementById('formProduksi');
     const statusMsg = document.getElementById('statusMsg');
     const selectKandang = document.getElementById('idKandang');
     const inputPakanKg = document.getElementById('pakanKg');
     const tabelRiwayatProduksi = document.getElementById('tabel-riwayat-produksi');
 
-    // --- 1. MAPPING NAMA KANDANG (Agar tabel riwayat menampilkan nama, bukan ID) ---
+    const kandangColl = collection(db, "peternakan", userId, "kandang");
+    const produksiColl = collection(db, "peternakan", userId, "produksi_harian");
+
     let mapKandang = {};
-    onSnapshot(collection(db, "kandang"), (snap) => {
+    onSnapshot(kandangColl, (snap) => {
         mapKandang = {};
-        snap.forEach(doc => {
-            mapKandang[doc.id] = doc.data().nama_kandang;
-        });
+        snap.forEach(doc => { mapKandang[doc.id] = doc.data().nama_kandang; });
     });
 
-    // --- 2. AUTO-KALKULASI PAKAN (120gr / ekor) ---
     selectKandang.addEventListener('change', function() {
         const selectedOption = this.options[this.selectedIndex];
         if (this.value !== "") {
@@ -315,12 +488,10 @@ function initCRUDProduksi() {
         }
     });
 
-    // --- 3. CREATE: PROSES SUBMIT JURNAL ---
     formProduksi.addEventListener('submit', async (e) => {
         e.preventDefault();
         const btnSubmit = document.getElementById('btnSubmit');
-        btnSubmit.disabled = true;
-        btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
+        btnSubmit.disabled = true; btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
 
         try {
             const idKandang = selectKandang.value;
@@ -338,7 +509,7 @@ function initCRUDProduksi() {
             const populasiAktif = populasiAwal - mortalitas;
             const hdp = populasiAktif > 0 ? ((estimasiButir / populasiAktif) * 100).toFixed(2) : 0;
 
-            await addDoc(collection(db, "produksi_harian"), {
+            await addDoc(produksiColl, {
                 id_kandang: idKandang,
                 tanggal: document.getElementById('tanggal').value,
                 pakan_habis_kg: pakanKg,
@@ -353,7 +524,7 @@ function initCRUDProduksi() {
             });
 
             if (mortalitas > 0) {
-                await updateDoc(doc(db, "kandang", idKandang), {
+                await updateDoc(doc(kandangColl, idKandang), {
                     populasi_aktif: increment(-mortalitas)
                 });
             }
@@ -367,22 +538,17 @@ function initCRUDProduksi() {
             statusMsg.className = "mt-4 p-3 rounded-md bg-red-100 text-red-700 block text-sm";
             statusMsg.innerHTML = "Gagal: " + error.message;
         } finally {
-            btnSubmit.disabled = false;
-            btnSubmit.innerHTML = '<i class="fa-solid fa-save"></i> Simpan Data';
+            btnSubmit.disabled = false; btnSubmit.innerHTML = '<i class="fa-solid fa-save"></i> Simpan Data';
             setTimeout(() => statusMsg.classList.add('hidden'), 5000);
         }
     });
 
-    // --- 4. READ: MENAMPILKAN TABEL RIWAYAT PRODUKSI ---
-    const qProd = query(collection(db, "produksi_harian"), limit(30)); // Batasi 30 data agar ringan
+    const qProd = query(produksiColl, limit(30)); 
     
     onSnapshot(qProd, (snapshot) => {
         let allProduksi = [];
-        snapshot.forEach(doc => {
-            allProduksi.push({ id: doc.id, ...doc.data() });
-        });
+        snapshot.forEach(doc => { allProduksi.push({ id: doc.id, ...doc.data() }); });
 
-        // Pengurutan Ganda: Tanggal (Terbaru) -> Waktu Input/Timestamp (Terbaru)
         allProduksi.sort((a, b) => {
             if (b.tanggal !== a.tanggal) return b.tanggal.localeCompare(a.tanggal);
             const timeA = a.timestamp ? a.timestamp.toMillis() : 0;
@@ -421,7 +587,6 @@ function initCRUDProduksi() {
             tabelRiwayatProduksi.appendChild(tr);
         });
 
-        // --- 5. DELETE: FUNGSI HAPUS RIWAYAT & KEMBALIKAN POPULASI ---
         document.querySelectorAll('.btn-hapus-produksi').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 const idHapus = e.currentTarget.getAttribute('data-id');
@@ -430,12 +595,10 @@ function initCRUDProduksi() {
 
                 if(confirm('Yakin ingin menghapus catatan produksi ini? Data grafik dashboard akan ikut terpengaruh.')) {
                     try {
-                        await deleteDoc(doc(db, "produksi_harian", idHapus));
-                        
-                        // Fitur Pintar: Tanyakan apakah ingin mengembalikan jumlah populasi ayam yang terlanjur dicatat mati
+                        await deleteDoc(doc(produksiColl, idHapus));
                         if (jmlMati > 0) {
-                            if(confirm(`Catatan ini memiliki mortalitas ${jmlMati} ekor.\n\nApakah Anda ingin MENGEMBALIKAN ${jmlMati} ekor tersebut ke populasi Kandang? (Pilih 'OK' jika salah ketik mati, pilih 'Cancel' jika ayam memang mati tapi datanya saja yang salah).`)) {
-                                await updateDoc(doc(db, "kandang", idKandang), {
+                            if(confirm(`Catatan ini memiliki mortalitas ${jmlMati} ekor.\nApakah Anda ingin MENGEMBALIKAN ${jmlMati} ekor tersebut ke populasi Kandang?`)) {
+                                await updateDoc(doc(kandangColl, idKandang), {
                                     populasi_aktif: increment(jmlMati)
                                 });
                             }
@@ -450,55 +613,29 @@ function initCRUDProduksi() {
 }
 
 // ==========================================
-// D. CRUD KALKULATOR EKONOMI / KEUANGAN (KOMPLEKS)
+// F. CRUD KALKULATOR EKONOMI
 // ==========================================
-function initCRUDEkonomi() {
+function initCRUDEkonomi(userId) {
     const formEkonomi = document.getElementById('formEkonomi');
     const tipeTrx = document.getElementById('tipeTrx');
     const kategoriTrx = document.getElementById('kategoriTrx');
     const tglTrx = document.getElementById('tglTrx');
     
-    // Set default tanggal hari ini
     tglTrx.value = new Date().toISOString().split('T')[0];
 
-    // Rekomendasi Kategori (Chart of Accounts) Peternakan Layer
     const daftarKategori = {
-        pemasukan: [
-            "Penjualan Telur Utuh", 
-            "Penjualan Telur Bentes / Retak", 
-            "Penjualan Ayam Afkir", 
-            "Penjualan Kotoran / Pupuk", 
-            "Pendapatan Lain-lain"
-        ],
-        pengeluaran: [
-            "Pembelian Pakan Jadi / Konsentrat", 
-            "Pembelian Bahan Baku Pakan (Jagung, Bekatul)", 
-            "Obat, Vitamin & Vaksin (OVK)", 
-            "Gaji Karyawan / ABK", 
-            "Listrik, Air & Internet", 
-            "Perawatan & Perbaikan Kandang", 
-            "Transportasi & BBM", 
-            "Pengeluaran Operasional Lainnya"
-        ],
-        investasi: [
-            "Pembuatan Kandang Baru", 
-            "Pembelian Pullet (Ayam Remaja)", 
-            "Pembelian Peralatan Kandang", 
-            "Suntikan Modal Tambahan", 
-            "Pembayaran Cicilan Hutang Pokok"
-        ]
+        pemasukan: ["Penjualan Telur Utuh", "Penjualan Telur Bentes / Retak", "Penjualan Ayam Afkir", "Penjualan Kotoran / Pupuk", "Pendapatan Lain-lain"],
+        pengeluaran: ["Pembelian Pakan Jadi / Konsentrat", "Pembelian Bahan Baku Pakan (Jagung, Bekatul)", "Obat, Vitamin & Vaksin (OVK)", "Gaji Karyawan / ABK", "Listrik, Air & Internet", "Perawatan & Perbaikan Kandang", "Transportasi & BBM", "Pengeluaran Operasional Lainnya"],
+        investasi: ["Pembuatan Kandang Baru", "Pembelian Pullet (Ayam Remaja)", "Pembelian Peralatan Kandang", "Suntikan Modal Tambahan", "Pembayaran Cicilan Hutang Pokok"]
     };
 
-    // --- LOGIKA DROPDOWN KATEGORI DINAMIS ---
     tipeTrx.addEventListener('change', function() {
         const tipe = this.value;
-        kategoriTrx.innerHTML = ''; // Kosongkan opsi sebelumnya
+        kategoriTrx.innerHTML = ''; 
 
         if (tipe && daftarKategori[tipe]) {
             kategoriTrx.disabled = false;
             kategoriTrx.innerHTML = '<option value="">-- Pilih Kategori --</option>';
-            
-            // Masukkan opsi sesuai array rekomendasi
             daftarKategori[tipe].forEach(kat => {
                 kategoriTrx.innerHTML += `<option value="${kat}">${kat}</option>`;
             });
@@ -508,47 +645,37 @@ function initCRUDEkonomi() {
         }
     });
 
-    // --- 1. CREATE: Input Transaksi ke Database ---
+    const keuanganColl = collection(db, "peternakan", userId, "transaksi_keuangan");
+
     formEkonomi.addEventListener('submit', async (e) => {
         e.preventDefault();
         const btnSubmit = document.getElementById('btnSubmitEkonomi');
-        btnSubmit.disabled = true;
-        btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mencatat...';
+        btnSubmit.disabled = true; btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mencatat...';
         
-        const tanggal = tglTrx.value;
-        const tipe = tipeTrx.value;
-        const kategori = kategoriTrx.value;
-        const nominal = parseFloat(document.getElementById('nominalTrx').value);
-        const keterangan = document.getElementById('keteranganTrx').value.trim();
-
         try {
-            await addDoc(collection(db, "transaksi_keuangan"), {
-                tanggal_transaksi: tanggal,
-                tipe_transaksi: tipe,
-                kategori: kategori,
-                nominal: nominal,
-                keterangan: keterangan || "-", // Jika kosong, isi dengan strip
-                timestamp_input: new Date()    // Waktu aktual data diketik admin
+            await addDoc(keuanganColl, {
+                tanggal_transaksi: tglTrx.value,
+                tipe_transaksi: tipeTrx.value,
+                kategori: kategoriTrx.value,
+                nominal: parseFloat(document.getElementById('nominalTrx').value),
+                keterangan: document.getElementById('keteranganTrx').value.trim() || "-",
+                timestamp_input: new Date()    
             });
             
             alert("Transaksi berhasil dicatat ke Buku Kas!");
             formEkonomi.reset();
-            tipeTrx.dispatchEvent(new Event('change')); // Reset dropdown kategori
+            tipeTrx.dispatchEvent(new Event('change')); 
             tglTrx.value = new Date().toISOString().split('T')[0];
             
         } catch (error) {
             alert("Gagal mencatat transaksi: " + error.message);
         } finally {
-            btnSubmit.disabled = false;
-            btnSubmit.innerHTML = '<i class="fa-solid fa-plus-circle"></i> Catat ke Buku Kas';
+            btnSubmit.disabled = false; btnSubmit.innerHTML = '<i class="fa-solid fa-plus-circle"></i> Catat ke Buku Kas';
         }
     });
 
-    // --- 2. READ: Menghitung Analisis Cepat & Laporan ---
-    onSnapshot(collection(db, "transaksi_keuangan"), (snapshot) => {
-        let totalInvestasi = 0;
-        let totalPemasukan = 0;
-        let totalPengeluaran = 0;
+    onSnapshot(keuanganColl, (snapshot) => {
+        let totalInvestasi = 0; let totalPemasukan = 0; let totalPengeluaran = 0;
 
         snapshot.forEach(doc => {
             const data = doc.data();
@@ -559,7 +686,6 @@ function initCRUDEkonomi() {
 
         const labaBersih = totalPemasukan - totalPengeluaran;
 
-        // Update UI Panel Analisis (Kalkulator)
         const analisisPanel = document.getElementById('panel-analisis-ekonomi');
         if(analisisPanel) {
             let statusLabaRugi = labaBersih >= 0 
@@ -572,33 +698,21 @@ function initCRUDEkonomi() {
                 <div class="bg-gray-700 p-3 rounded mt-2"><p class="text-sm text-gray-300">Status Finansial Terkini Diperbarui Real-time dari Buku Kas.</p></div>
             `;
         }
-
-        // Update UI Laporan Keuangan (Menu Sebelahnya)
-        const laporanPanel = document.querySelector('#sec-laporan .space-y-4');
-        if(laporanPanel) {
-            laporanPanel.innerHTML = `
-                <div class="flex justify-between items-center text-gray-700"><span>Total Pendapatan (Revenue)</span> <span class="font-semibold text-green-700">${formatRupiah(totalPemasukan)}</span></div>
-                <div class="flex justify-between items-center text-gray-700"><span>Total Biaya Operasional (Opex)</span> <span class="font-semibold text-red-600">- ${formatRupiah(totalPengeluaran)}</span></div>
-                <div class="border-t-2 border-dashed border-gray-300 pt-3 flex justify-between items-center text-lg font-bold ${labaBersih >= 0 ? 'text-green-700' : 'text-red-700'}">
-                    <span>${labaBersih >= 0 ? 'Laba Bersih (Net Profit)' : 'Rugi Operasional'}</span> <span>${formatRupiah(Math.abs(labaBersih))}</span>
-                </div>
-            `;
-        }
     });
 }
 
 // ==========================================
-// E. CRUD HARGA TELUR JATIM
+// G. CRUD HARGA TELUR JATIM
 // ==========================================
-function initCRUDHarga() {
+function initCRUDHarga(userId) {
     const formHargaTelur = document.getElementById('formHargaTelur');
     const inputHargaTelur = document.getElementById('inputHargaTelur');
     const displayHargaTelur = document.getElementById('display-harga-telur');
     const displayTrendHarga = document.getElementById('display-trend-harga');
     const tabelRiwayatHarga = document.getElementById('tabel-riwayat-harga');
 
-    // 1. READ: Ambil 10 data harga terakhir secara real-time
-    const qHarga = query(collection(db, "harga_pasar"), orderBy("tanggal", "desc"), limit(10));
+    const hargaColl = collection(db, "peternakan", userId, "harga_pasar");
+    const qHarga = query(hargaColl, orderBy("tanggal", "desc"), limit(10));
     
     onSnapshot(qHarga, (snapshot) => {
         tabelRiwayatHarga.innerHTML = '';
@@ -613,10 +727,8 @@ function initCRUDHarga() {
         const docs = snapshot.docs;
         const latestData = docs[0].data();
         
-        // Render Harga Terkini (Paling Atas di Database)
         displayHargaTelur.innerHTML = formatRupiah(latestData.harga);
 
-        // Kalkulasi Tren (Bandingkan data index 0 dengan index 1 jika ada)
         if (docs.length > 1) {
             const prevData = docs[1].data();
             const selisih = latestData.harga - prevData.harga;
@@ -632,12 +744,9 @@ function initCRUDHarga() {
             displayTrendHarga.innerHTML = `<span class="text-gray-500">Data awal sistem tercatat.</span>`;
         }
 
-        // Render Tabel Riwayat
         docs.forEach(docSnap => {
             const data = docSnap.data();
-            const id = docSnap.id; // Format ID adalah YYYY-MM-DD
-            
-            // Format ulang tanggal agar lebih mudah dibaca (ex: 8 Mar 2026)
+            const id = docSnap.id; 
             const dateObj = new Date(data.tanggal);
             const tglLokal = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -653,55 +762,44 @@ function initCRUDHarga() {
             tabelRiwayatHarga.appendChild(tr);
         });
 
-        // 3. DELETE: Event listener untuk tombol hapus riwayat
         document.querySelectorAll('.btn-hapus-harga').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 const idHapus = e.currentTarget.getAttribute('data-id');
                 if(confirm(`Yakin ingin menghapus catatan harga untuk tanggal ${idHapus}?`)) {
-                    await deleteDoc(doc(db, "harga_pasar", idHapus));
+                    await deleteDoc(doc(hargaColl, idHapus));
                 }
             });
         });
     });
 
-    // 2. CREATE / UPDATE: Simpan harga hari ini
     formHargaTelur.addEventListener('submit', async (e) => {
         e.preventDefault();
         const btnSubmit = document.getElementById('btnUpdateHarga');
-        btnSubmit.disabled = true;
-        btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+        btnSubmit.disabled = true; btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
 
         const hargaBaru = parseFloat(inputHargaTelur.value);
-        
-        // Membuat string tanggal lokal format YYYY-MM-DD yang aman
         const d = new Date();
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        const todayStr = `${year}-${month}-${day}`; 
+        const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; 
 
         try {
-            // Menggunakan setDoc agar jika hari ini sudah diinput, dia akan menimpa/mengupdate datanya
-            await setDoc(doc(db, "harga_pasar", todayStr), {
+            await setDoc(doc(hargaColl, todayStr), {
                 tanggal: todayStr,
                 harga: hargaBaru,
                 timestamp: new Date()
             });
-            
             inputHargaTelur.value = "";
         } catch (error) {
             alert("Gagal memperbarui harga: " + error.message);
         } finally {
-            btnSubmit.disabled = false;
-            btnSubmit.innerHTML = 'Update Sistem';
+            btnSubmit.disabled = false; btnSubmit.innerHTML = 'Update Sistem';
         }
     });
 }
 
 // ==========================================
-// F. LAPORAN KEUANGAN & BUKU BESAR (REVISI URUTAN TIMESTAMP)
+// H. LAPORAN KEUANGAN BUKU BESAR
 // ==========================================
-function initLaporanKeuangan() {
+function initLaporanKeuangan(userId) {
     const tabelBukuBesar = document.getElementById('tabel-buku-besar');
     const filterBulan = document.getElementById('filterBulanLaporan');
     const filterTahun = document.getElementById('filterTahunLaporan');
@@ -711,39 +809,29 @@ function initLaporanKeuangan() {
     const lapLabaBersih = document.getElementById('lap-laba-bersih');
     const lapInvestasi = document.getElementById('lap-total-investasi');
 
-    // REVISI 1: Ambil data collection secara utuh
-    const qTrx = collection(db, "transaksi_keuangan");
+    const keuanganColl = collection(db, "peternakan", userId, "transaksi_keuangan");
 
-    onSnapshot(qTrx, (snapshot) => {
+    onSnapshot(keuanganColl, (snapshot) => {
         let allTransactions = [];
-        snapshot.forEach(doc => {
-            allTransactions.push({ id: doc.id, ...doc.data() });
-        });
+        snapshot.forEach(doc => { allTransactions.push({ id: doc.id, ...doc.data() }); });
 
-        // REVISI 2: Pengurutan Ganda (Double Sorting) menggunakan JavaScript
+        // Pengurutan Ganda (Tanggal lalu Waktu Input)
         allTransactions.sort((a, b) => {
-            // Prioritas 1: Urutkan berdasarkan Tanggal Transaksi (Terbaru di atas)
             if (b.tanggal_transaksi !== a.tanggal_transaksi) {
                 return b.tanggal_transaksi.localeCompare(a.tanggal_transaksi);
             }
-            // Prioritas 2: Jika tanggalnya SAMA, urutkan berdasarkan Jam/Detik Input (Timestamp)
             const timeA = a.timestamp_input ? a.timestamp_input.toMillis() : 0;
             const timeB = b.timestamp_input ? b.timestamp_input.toMillis() : 0;
             return timeB - timeA;
         });
 
-        // Fungsi internal untuk memfilter dan me-render ulang data ke tabel
         function renderLaporan() {
             const bulanPilih = filterBulan.value;
             const tahunPilih = filterTahun.value;
 
-            let sumPemasukan = 0;
-            let sumPengeluaran = 0;
-            let sumInvestasi = 0;
-
+            let sumPemasukan = 0; let sumPengeluaran = 0; let sumInvestasi = 0;
             tabelBukuBesar.innerHTML = '';
 
-            // 1. Filter Data Berdasarkan Dropdown Bulan & Tahun
             const filteredData = allTransactions.filter(trx => {
                 const trxDate = new Date(trx.tanggal_transaksi);
                 const trxMonth = String(trxDate.getMonth() + 1).padStart(2, '0');
@@ -755,53 +843,36 @@ function initLaporanKeuangan() {
                 return matchBulan && matchTahun;
             });
 
-            // 2. Jika Data Kosong
             if(filteredData.length === 0) {
-                tabelBukuBesar.innerHTML = '<tr><td colspan="5" class="text-center p-8 text-gray-500 italic"><i class="fa-solid fa-folder-open text-2xl mb-2 block"></i> Tidak ada transaksi pada periode ini.</td></tr>';
+                tabelBukuBesar.innerHTML = '<tr><td colspan="6" class="text-center p-8 text-gray-500 italic"><i class="fa-solid fa-folder-open text-2xl mb-2 block"></i> Tidak ada transaksi pada periode ini.</td></tr>';
             }
 
-            // 3. Render Data ke Tabel
             filteredData.forEach(trx => {
                 const dateObj = new Date(trx.tanggal_transaksi);
                 const tglLokal = dateObj.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
-                
-                // Tambahkan waktu (jam:menit) untuk tampilan yang lebih informatif
                 const timeString = trx.timestamp_input ? new Date(trx.timestamp_input.toMillis()).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '';
                 
-                let rowHtml = '';
-                let tipeBadge = '';
+                let rowHtml = ''; let tipeBadge = '';
                 
-                // Pisahkan logika visual berdasarkan tipe transaksi
                 if(trx.tipe_transaksi === 'pemasukan') {
                     sumPemasukan += trx.nominal;
                     tipeBadge = '<span class="bg-green-100 text-green-800 border border-green-200 px-2 py-1 rounded text-[10px] font-bold tracking-wider">INCOME</span>';
-                    rowHtml = `
-                        <td class="p-4 text-right text-green-700 font-semibold bg-green-50/30">${formatRupiah(trx.nominal)}</td>
-                        <td class="p-4 text-right text-gray-300">-</td>
-                    `;
+                    rowHtml = `<td class="p-4 text-right text-green-700 font-semibold bg-green-50/30">${formatRupiah(trx.nominal)}</td><td class="p-4 text-right text-gray-300">-</td>`;
                 } else if (trx.tipe_transaksi === 'pengeluaran') {
                     sumPengeluaran += trx.nominal;
                     tipeBadge = '<span class="bg-red-100 text-red-800 border border-red-200 px-2 py-1 rounded text-[10px] font-bold tracking-wider">COST</span>';
-                    rowHtml = `
-                        <td class="p-4 text-right text-gray-300">-</td>
-                        <td class="p-4 text-right text-red-700 font-semibold bg-red-50/30">${formatRupiah(trx.nominal)}</td>
-                    `;
+                    rowHtml = `<td class="p-4 text-right text-gray-300">-</td><td class="p-4 text-right text-red-700 font-semibold bg-red-50/30">${formatRupiah(trx.nominal)}</td>`;
                 } else if (trx.tipe_transaksi === 'investasi') {
                     sumInvestasi += trx.nominal;
                     tipeBadge = '<span class="bg-purple-100 text-purple-800 border border-purple-200 px-2 py-1 rounded text-[10px] font-bold tracking-wider">CAPEX</span>';
-                    rowHtml = `
-                        <td class="p-4 text-right text-gray-300">-</td>
-                        <td class="p-4 text-right text-purple-700 font-semibold bg-purple-50/30">${formatRupiah(trx.nominal)}</td>
-                    `;
+                    rowHtml = `<td class="p-4 text-right text-gray-300">-</td><td class="p-4 text-right text-purple-700 font-semibold bg-purple-50/30">${formatRupiah(trx.nominal)}</td>`;
                 }
 
-                // Render Baris HTML
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-blue-50 transition-colors group';
                 tr.innerHTML = `
                     <td class="p-4 text-gray-600 font-medium whitespace-nowrap">
-                        ${tglLokal} <br>
-                        <span class="text-[10px] text-gray-400 font-normal"><i class="fa-regular fa-clock"></i> ${timeString}</span>
+                        ${tglLokal} <br><span class="text-[10px] text-gray-400 font-normal"><i class="fa-regular fa-clock"></i> ${timeString}</span>
                     </td>
                     <td class="p-4 text-center">${tipeBadge}</td>
                     <td class="p-4">
@@ -809,11 +880,27 @@ function initLaporanKeuangan() {
                         <div class="text-xs text-gray-500 mt-1"><i class="fa-solid fa-note-sticky mr-1"></i> ${trx.keterangan || 'Tidak ada catatan'}</div>
                     </td>
                     ${rowHtml}
+                    <td class="p-4 text-right print:hidden">
+                        <button class="btn-hapus-kas text-red-400 hover:text-red-600 bg-red-50 px-2 py-1 rounded transition-colors" data-id="${trx.id}" title="Hapus Transaksi"><i class="fa-solid fa-trash text-sm"></i></button>
+                    </td>
                 `;
                 tabelBukuBesar.appendChild(tr);
             });
 
-            // 4. Update Angka Ringkasan Eksekutif
+            // Event Listener untuk Tombol Hapus Kas
+            document.querySelectorAll('.btn-hapus-kas').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const idHapus = e.currentTarget.getAttribute('data-id');
+                    if(confirm("Yakin ingin menghapus catatan transaksi ini dari Buku Kas?\n\nLaba/Rugi akan otomatis dihitung ulang.")) {
+                        try {
+                            await deleteDoc(doc(keuanganColl, idHapus)); 
+                        } catch (err) {
+                            alert("Gagal menghapus: " + err.message);
+                        }
+                    }
+                });
+            });
+
             const labaBersih = sumPemasukan - sumPengeluaran;
 
             lapPemasukan.innerText = formatRupiah(sumPemasukan);
@@ -839,169 +926,16 @@ function initLaporanKeuangan() {
 }
 
 // ==========================================
-// G. SINKRONISASI DASHBOARD UTAMA & GRAFIK
+// I. REGISTRASI PWA (WEB APP)
 // ==========================================
-function initDashboardUtama() {
-    const elProduksi = document.getElementById('dash-produksi-hari-ini');
-    const elHdp = document.getElementById('dash-hdp-hari-ini');
-    const elKas = document.getElementById('dash-kas-bulan-ini');
-    
-    // Variabel penampung grafik agar bisa di-destroy sebelum dirender ulang (mencegah bug tumpang tindih)
-    let myChart = null;
-
-    // 1. SINKRONISASI PRODUKSI & GRAFIK (Baca data produksi)
-    const qProd = query(collection(db, "produksi_harian"), orderBy("tanggal", "desc"), limit(50));
-    
-    onSnapshot(qProd, (snapshot) => {
-        const todayStr = new Date().toISOString().split('T')[0];
-        
-        let totalTelurHariIni = 0;
-        let totalHdpHariIni = 0;
-        let countKandangHariIni = 0;
-
-        // Objek untuk mengelompokkan data berdasarkan tanggal (karena bisa ada >1 kandang per hari)
-        const rekapHarian = {};
-
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            const tgl = data.tanggal;
-
-            // Agregasi (Penggabungan) data per tanggal
-            if (!rekapHarian[tgl]) {
-                rekapHarian[tgl] = { telur: 0, pakan: 0 };
-            }
-            rekapHarian[tgl].telur += data.total_telur_kg;
-            rekapHarian[tgl].pakan += data.pakan_habis_kg;
-
-            // Hitung spesifik untuk HARI INI
-            if (tgl === todayStr) {
-                totalTelurHariIni += data.total_telur_kg;
-                totalHdpHariIni += data.hdp_persen;
-                countKandangHariIni++;
-            }
-        });
-
-        // Update Widget Hari Ini
-        elProduksi.innerHTML = `${totalTelurHariIni.toFixed(1)} <span class="text-sm font-normal text-gray-500">kg</span>`;
-        
-        if (countKandangHariIni > 0) {
-            const rataHdp = (totalHdpHariIni / countKandangHariIni).toFixed(1);
-            elHdp.innerHTML = `${rataHdp} <span class="text-sm font-normal text-gray-500">%</span>`;
-        } else {
-            elHdp.innerHTML = `0 <span class="text-sm font-normal text-gray-500">%</span>`;
-        }
-
-        // --- RENDER GRAFIK (7 Hari Terakhir) ---
-        // Ambil maksimal 7 tanggal terakhir, urutkan dari yang terlama ke terbaru (kiri ke kanan)
-        const sortedDates = Object.keys(rekapHarian).sort().slice(-7); 
-        
-        const labels = [];
-        const dataTelur = [];
-        const dataPakan = [];
-
-        sortedDates.forEach(tgl => {
-            // Ubah format "YYYY-MM-DD" jadi "DD MMM" untuk label bawah grafik
-            const dateObj = new Date(tgl);
-            labels.push(dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }));
-            
-            dataTelur.push(rekapHarian[tgl].telur.toFixed(1));
-            dataPakan.push(rekapHarian[tgl].pakan.toFixed(1));
-        });
-
-        const ctx = document.getElementById('chartProduksi').getContext('2d');
-        
-        // Hancurkan grafik lama jika ada update real-time
-        if (myChart) myChart.destroy();
-
-        // Buat Grafik Baru
-        myChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'Produksi Telur (Kg)',
-                        data: dataTelur,
-                        borderColor: '#eab308', // Yellow-500
-                        backgroundColor: 'rgba(234, 179, 8, 0.1)',
-                        borderWidth: 3,
-                        tension: 0.3, // Membuat garis melengkung halus
-                        fill: true,
-                        yAxisID: 'y'
-                    },
-                    {
-                        label: 'Konsumsi Pakan (Kg)',
-                        data: dataPakan,
-                        borderColor: '#3b82f6', // Blue-500
-                        backgroundColor: 'transparent',
-                        borderWidth: 2,
-                        borderDash: [5, 5], // Garis putus-putus
-                        tension: 0.3,
-                        yAxisID: 'y1'
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                plugins: {
-                    legend: { position: 'top' }
-                },
-                scales: {
-                    x: { grid: { display: false } },
-                    y: { 
-                        type: 'linear', display: true, position: 'left',
-                        title: { display: true, text: 'Telur (Kg)' }
-                    },
-                    y1: { 
-                        type: 'linear', display: true, position: 'right',
-                        title: { display: true, text: 'Pakan (Kg)' },
-                        grid: { drawOnChartArea: false } // Hilangkan garis grid bertumpuk
-                    }
-                }
-            }
-        });
-    });
-
-    // 2. SINKRONISASI ARUS KAS BERSIH (BULAN INI)
-    onSnapshot(collection(db, "transaksi_keuangan"), (snapshot) => {
-        const d = new Date();
-        const currentMonth = String(d.getMonth() + 1).padStart(2, '0');
-        const currentYear = String(d.getFullYear());
-
-        let kasMasukBulanIni = 0;
-        let kasKeluarBulanIni = 0;
-
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            const tglTrx = new Date(data.tanggal_transaksi);
-            const trxMonth = String(tglTrx.getMonth() + 1).padStart(2, '0');
-            const trxYear = String(tglTrx.getFullYear());
-
-            // Filter hanya transaksi bulan dan tahun ini
-            if (trxMonth === currentMonth && trxYear === currentYear) {
-                if (data.tipe_transaksi === 'pemasukan') {
-                    kasMasukBulanIni += data.nominal;
-                } else if (data.tipe_transaksi === 'pengeluaran') {
-                    // Opex mengurangi arus kas
-                    kasKeluarBulanIni += data.nominal;
-                } else if (data.tipe_transaksi === 'investasi') {
-                    // Capex juga mengurangi arus kas riil di bank
-                    kasKeluarBulanIni += data.nominal;
-                }
-            }
-        });
-
-        const netCashFlow = kasMasukBulanIni - kasKeluarBulanIni;
-        
-        // Format & Warnai Widget
-        if (netCashFlow > 0) {
-            elKas.innerHTML = `<span class="text-green-600">+ ${formatRupiah(netCashFlow)}</span>`;
-        } else if (netCashFlow < 0) {
-            elKas.innerHTML = `<span class="text-red-600">- ${formatRupiah(Math.abs(netCashFlow))}</span>`;
-        } else {
-            elKas.innerHTML = formatRupiah(0);
-        }
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then(registration => {
+                console.log('PWA ServiceWorker berhasil didaftarkan dengan scope:', registration.scope);
+            })
+            .catch(error => {
+                console.log('PWA ServiceWorker gagal didaftarkan:', error);
+            });
     });
 }

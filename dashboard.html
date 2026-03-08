@@ -4,17 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - Ashda Nusantara Farm</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#166534">
+    <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="icon" href="favicon.png" type="image/png">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
     <link rel="stylesheet" href="dashboard.css">
 </head>
 <body class="bg-gray-100 flex h-screen overflow-hidden font-sans relative">
 
     <div id="sidebarOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-20 hidden md:hidden"></div>
 
-    <aside id="sidebar" class="w-64 bg-green-800 text-white flex flex-col shadow-xl fixed inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 transition duration-300 ease-in-out z-30">
+    <aside id="sidebar" class="w-64 bg-green-800 text-white flex flex-col shadow-xl fixed inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 transition duration-300 ease-in-out z-30 print:hidden">
         <div class="p-6 border-b border-green-700 flex justify-between items-center">
             <div class="flex items-center gap-3">
                 <img src="logo.png" alt="Logo Ashda Farm" class="h-10 w-auto object-contain">
@@ -36,6 +45,7 @@
                 <li><a href="#" data-target="sec-kalkulator" class="nav-link flex items-center gap-3 px-6 py-3 hover:bg-green-700 transition-colors"><i class="fa-solid fa-calculator w-5"></i> Kalkulator Ekonomi</a></li>
                 <li><a href="#" data-target="sec-laporan" class="nav-link flex items-center gap-3 px-6 py-3 hover:bg-green-700 transition-colors"><i class="fa-solid fa-file-invoice-dollar w-5"></i> Laporan Keuangan</a></li>
                 <li><a href="#" data-target="sec-harga" class="nav-link flex items-center gap-3 px-6 py-3 hover:bg-green-700 transition-colors"><i class="fa-solid fa-tags w-5"></i> Harga Telur Jatim</a></li>
+                <li class="mt-4 border-t border-green-700 pt-2"><a href="#" data-target="sec-pengaturan" class="nav-link flex items-center gap-3 px-6 py-3 hover:bg-green-700 transition-colors"><i class="fa-solid fa-gear w-5"></i> Profil & Peta Lokasi</a></li>
             </ul>
         </nav>
 
@@ -48,7 +58,7 @@
     </aside>
 
     <main class="flex-1 flex flex-col h-screen overflow-y-auto w-full">
-        <header class="bg-white shadow-sm p-4 flex justify-between items-center sticky top-0 z-10">
+        <header class="bg-white shadow-sm p-4 flex justify-between items-center sticky top-0 z-10 print:hidden">
             <div class="flex items-center gap-4">
                 <button id="openSidebar" class="md:hidden text-gray-600 hover:text-green-800 focus:outline-none">
                     <i class="fa-solid fa-bars text-2xl"></i>
@@ -87,6 +97,38 @@
                 </div>
             </section>
 
+            <section id="sec-pengaturan" class="content-section hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    
+                    <div class="bg-white rounded-lg shadow-sm p-4 md:p-6 h-fit">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Pengaturan Peternakan</h3>
+                        <form id="formProfil" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Nama Peternakan</label>
+                                <input type="text" id="inputNamaFarm" required class="mt-1 block w-full rounded border-gray-300 border p-2 focus:ring-green-500 focus:border-green-500" placeholder="Misal: Peternakan Ayam Sejahtera">
+                                <p class="text-xs text-gray-500 mt-1">Nama ini akan muncul di sidebar aplikasi Anda.</p>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-4 mt-2">
+                                <div><label class="block text-xs text-gray-500">Latitude (Lintang)</label><input type="text" id="inputLat" readonly class="w-full bg-gray-100 border-gray-300 border p-2 rounded text-sm text-gray-600"></div>
+                                <div><label class="block text-xs text-gray-500">Longitude (Bujur)</label><input type="text" id="inputLng" readonly class="w-full bg-gray-100 border-gray-300 border p-2 rounded text-sm text-gray-600"></div>
+                            </div>
+                            
+                            <button type="submit" id="btnSimpanProfil" class="w-full bg-green-600 text-white py-2 mt-4 rounded hover:bg-green-700 transition-colors font-medium flex justify-center items-center gap-2">
+                                <i class="fa-solid fa-save"></i> Simpan Profil & Lokasi
+                            </button>
+                        </form>
+                        <div id="msgProfil" class="mt-3 text-sm hidden"></div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow-sm p-4 md:p-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">Peta Sebaran Mitra</h3>
+                        <p class="text-xs text-gray-500 mb-4">Klik pada area peta untuk menandai atau mengubah lokasi peternakan Anda. Marker biru adalah milik Anda, merah adalah mitra lainnya.</p>
+                        <div id="mapContainer" class="w-full h-80 md:h-96 rounded-md border-2 border-gray-200 z-0"></div>
+                    </div>
+
+                </div>
+            </section>
 
             <section id="sec-kandang" class="content-section hidden">
                 <div class="bg-white rounded-lg shadow-sm p-4 md:p-6">
@@ -226,7 +268,7 @@
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 border-b-2 border-gray-200 pb-4">
                         <div>
                             <h3 class="text-2xl font-bold text-gray-800 uppercase tracking-wide"><i class="fa-solid fa-file-invoice-dollar text-green-600 mr-2"></i> Laporan Keuangan</h3>
-                            <p class="text-sm text-gray-500 mt-1">Ashda Nusantara Farm - Buku Besar Jurnal Kas</p>
+                            <p class="text-sm text-gray-500 mt-1">Buku Besar Jurnal Kas</p>
                         </div>
                         <div class="flex gap-2 print:hidden">
                             <select id="filterBulanLaporan" class="border border-gray-300 rounded p-2 text-sm bg-gray-50 hover:bg-gray-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-500">
@@ -249,7 +291,7 @@
                                 <option value="2027">2027</option>
                                 <option value="2028">2028</option>
                             </select>
-                            <button onclick="window.print()" class="bg-gray-800 text-white px-4 py-2 rounded text-sm hover:bg-gray-700 transition-colors shadow-sm"><i class="fa-solid fa-print mr-2"></i> Cetak PDF</button>
+                            <button onclick="window.print()" class="bg-gray-800 text-white px-4 py-2 rounded text-sm hover:bg-gray-700 transition-colors shadow-sm flex items-center"><i class="fa-solid fa-print mr-2"></i> Cetak PDF</button>
                         </div>
                     </div>
 
@@ -282,16 +324,17 @@
                                     <th class="p-4 font-bold border-b">Kategori & Keterangan</th>
                                     <th class="p-4 font-bold border-b text-right text-green-700">Pemasukan (In)</th>
                                     <th class="p-4 font-bold border-b text-right text-red-700">Pengeluaran (Out)</th>
+                                    <th class="p-4 font-bold border-b text-right print:hidden w-16">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody id="tabel-buku-besar" class="bg-white divide-y divide-gray-200">
-                                <tr><td colspan="5" class="text-center p-8 text-gray-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Memuat Buku Kas...</td></tr>
+                                <tr><td colspan="6" class="text-center p-8 text-gray-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Memuat Buku Kas...</td></tr>
                             </tbody>
                         </table>
                     </div>
                     
                     <div class="mt-8 pt-4 border-t text-xs text-gray-400 text-right print:block hidden">
-                        Dokumen dicetak secara otomatis dari Sistem Ashda Nusantara Farm
+                        Dokumen dicetak secara otomatis dari Sistem Pencatatan Finansial.
                     </div>
                 </div>
             </section>
